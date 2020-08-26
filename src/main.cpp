@@ -1,33 +1,41 @@
-#include "cpp-arg-parser/cpp-arg-parser.hpp"
-#include "../test.hpp"
+#include "arg_parser/arg_parser.hpp"
 #include <iostream>
 
-using namespace cpp_arg_parser;
-using namespace std;
+int main(int argc, const char **argv) {
+    arg_parser::ArgParser argParser;
+    argParser.setProgramName(argv[0]);
 
-int main(int argc, char **argv) {
-    ArgumentParser argParser("crypto", "[VERB] [OPTIONS]", "--help");
-
-    // argParser
-    //     .addVerb("encrypt")
-    //     .addVerb("decrypt")
-    //     .addVerb("solve")
-    //     .addVerb("console");
-
-    argParser.addOption<bool>("ciphers", '\0', "Show all cipher types", false, false);
-    argParser.addOption<std::string>("mode", 'm', "The cipher mode to use", true, "encrypt");
-
-    // argParser
-    //     .addOption( true,  true, "The cipher to use",           "-c")
-    //     .addOption( true,  true, "The mode to use",             "-m")
-    //     .addOption(false, false, "Don't store the punctuation", "-nopunc")
-    //     .addOption(false, false, "Open the crypto CLI",         "--cli")
-    //     .addOption(false, false, "Show the help text",          "--help")
-    //     .addOption(false, false, "Show all cipher types",       "--ciphers");
+    argParser.addVerb("encrypt", "");
+    argParser.addVerb("decrypt", "");
+    argParser.addVerb("solve",   "");
+    argParser.addVerb("console", "");
     
-    // argParser.display();
-    // auto parsedArgs = argParser.parse(argc, argv);
-    // argParser.print(parsedArgs);
+    argParser.addOption("cipher", 'c', "The cipher to use", true,  true, true )
+        .addTestCriteria((new arg_parser::OneOfStringTestCriteria("cipher", false))
+            ->add("caesar")
+            ->add("affine")
+            ->add("atbash"))
+        .addTestCriteria((new arg_parser::TypeTestCriteria("cipher", arg_parser::Test_string)));
+    argParser.addOption("mode",   'm', "The mode to use", true,  true, false)
+        .addTestCriteria((new arg_parser::OneOfStringTestCriteria("mode", false))
+            ->add("encrypt")
+            ->add("decrypt")
+            ->add("solve")
+            ->add("analyse"));
+    argParser.addOption("nopunc", 'n', "Don't store the punctuation",         false, false, false);
+    argParser.addOption("cli",    'C', "Opens the crypto cli",                false, false, false);
+    argParser.addOption("key",    'k', "Pass the key argument to the cipher",  true, false, false);
+    argParser.addOption("verbose",'v', "Show everything",                     false, false, false);
+    argParser.addOption("number", 'n', "A test to pass a number",              true, false, false)
+        .addTestCriteria((new arg_parser::NumberRangeTestCriteria("number"))
+            ->addRange(10, 20)
+            ->add(7));
+
+    argParser.parse(argc, argv);
+
+    printf("cipher: %s\n", argParser.get("cipher").c_str());
+    printf("  mode: %s\n", argParser.get("mode"  ).c_str());
+    printf("number: %s\n", argParser.get("number").c_str());
 
     return 0;
 }
