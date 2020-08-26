@@ -2,7 +2,7 @@
 CC          := g++
 
 #The Target Binary Program
-TARGET      := arg-parser
+TARGET      := arg_parser
 
 #The Directories, Source, Includes, Objects, Binary and Resources
 SRCDIR      := src
