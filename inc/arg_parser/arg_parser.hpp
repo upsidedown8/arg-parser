@@ -6,112 +6,156 @@
 #include <sstream>
 #include <algorithm>
 
-namespace arg_parser {
+namespace cpp_arg_parser {
 
 const std::string shortPrefix = "-";
 const std::string longPrefix = "--";
 
+struct option;
+struct verb;
+
 /* -------------------------------------------------------------------------- */
 /*                                TestCriteria                                */
 /* -------------------------------------------------------------------------- */
-class TestCriteriaBase {
+class test_criteria_base {
 public:
-    std::string optionName;
+    option *parent;
 
-    void error(const std::string &optionName, const std::string& msg);
+    virtual ~test_criteria_base() {}
+
+    void error(const std::string& msg);
 
     virtual std::string toString() = 0;
     virtual void check(const std::string &value) = 0;
 };
 
+class custom_test_criteria : public test_criteria_base {
+private:
+    std::string desc, errorMsg;
+    bool (*evalFnPtr)(const std::string&);
+
+public:
+    custom_test_criteria(const std::string &errorMsg, const std::string &desc, bool (*evalFnPtr)(const std::string&));
+
+    std::string toString();
+    void check(const std::string &value);
+};
+custom_test_criteria &createCustom(const std::string &errorMsg, const std::string &desc, bool (*evalFnPtr)(const std::string&));
+
 enum TestTypes {
     Test_int, Test_double, Test_string
 };
 
-class TypeTestCriteria : public TestCriteriaBase {
+class type_test_criteria : public test_criteria_base {
 private:
     TestTypes type;
 
 public:
-    TypeTestCriteria(const std::string &optionName, TestTypes type);
+    type_test_criteria(TestTypes type);
 
     std::string toString();
     void check(const std::string &value);
 };
+type_test_criteria &createTypeTest(TestTypes type);
 
-class NumberListTestCritera : public TestCriteriaBase {
+class number_list_test_criteria : public test_criteria_base {
 private:
     std::vector<int> numbers;
 
 public:
-    NumberListTestCritera(const std::string &optionName);
-
     std::string toString();
     void check(const std::string &value);
-    NumberListTestCritera *add(int number);
+    number_list_test_criteria &add(int number);
 };
+number_list_test_criteria &createNumberList(const std::string &optionName);
 
-class RangeTestCriteria : public TestCriteriaBase {
+class range_test_criteria : public test_criteria_base {
 public:
     int start, end;
 
-    RangeTestCriteria(const std::string &optionName, int start, int end);
+    range_test_criteria(int start, int end);
 
     std::string toString();
     void check(const std::string &value);
 };
+range_test_criteria &createRange(int start, int end);
 
-class NumberRangeTestCriteria : public TestCriteriaBase {
+class number_range_test_criteria : public test_criteria_base {
 private:
     std::vector<int> numbers;
     std::vector<std::pair<int, int>*> ranges;
 
 public:
-    NumberRangeTestCriteria(const std::string &optionName);
-
     std::string toString();
     void check(const std::string &value);
-    NumberRangeTestCriteria *add(int number);
-    NumberRangeTestCriteria *addRange(int start, int end);
+    number_range_test_criteria &add(int number);
+    number_range_test_criteria &addRange(int start, int end);
 };
+number_range_test_criteria &createNumberRange();
 
-class OneOfStringTestCriteria : public TestCriteriaBase {
+class one_of_string_test_criteria : public test_criteria_base {
 private:
     bool matchCase;
     std::vector<std::string> possibilities;
 
 public:
-    OneOfStringTestCriteria(const std::string &optionName, bool matchCase);
+    one_of_string_test_criteria(bool matchCase);
 
     std::string toString();
     void check(const std::string &value);
-    OneOfStringTestCriteria *add(const std::string &possibility);
+    one_of_string_test_criteria &add(const std::string &possibility);
 };
-
-/* -------------------------------------------------------------------------- */
-/*                                    Verbs                                   */
-/* -------------------------------------------------------------------------- */
-struct Verb {
-    bool isPresent;
-    std::string name, desc;
-
-    Verb(const std::string name, const std::string desc);
-};
+one_of_string_test_criteria &createOneOfString(bool matchCase);
 
 /* -------------------------------------------------------------------------- */
 /*                                   Options                                  */
 /* -------------------------------------------------------------------------- */
-struct Option {
+struct option {
     bool expectsValue, isPresent, valueRequired, required;
     char chrName;
+    verb *parent;
+    void (*actionFn)(option *);
     std::string desc, fullName, value;
-    std::vector<TestCriteriaBase*> testCriteria;
+    std::vector<test_criteria_base*> testCriteria;
 
-    Option(const std::string &fullName, const char chrName, const std::string &desc, bool expectsValue, bool required, bool valueRequired);
+    option(const std::string &fullName, const char chrName, const std::string &desc, bool expectsValue, bool required);
 
-    Option &addTestCriteria(TestCriteriaBase *test);
+    option &addAction(void (*action)(option *));
+    option &addTestCriteria(test_criteria_base &test);
     void check();
+    void clear();
+    void runAction();
+    void printHelp();
 };
+
+option &createOption(const std::string &fullName, const char chrName, const std::string &desc, bool expectsValue, bool required);
+
+/* -------------------------------------------------------------------------- */
+/*                                    Verbs                                   */
+/* -------------------------------------------------------------------------- */
+struct verb {
+    bool isPresent;
+    void (*actionFn)(verb *);
+    verb *parent;
+    std::string name, desc;
+    std::map<std::string, verb*> verbsMap;
+    std::map<std::string, option*> optionsMap;
+    std::vector<verb*> verbs;
+    std::vector<option*> options;
+
+    verb(const std::string name, const std::string desc);
+
+    verb &addAction(void (*action)(verb *));
+    verb &addOption(option &opt);
+    verb &addVerb(verb &v);
+
+    void reset();
+    void clear();
+    void runAction();
+    void printHelp();
+};
+
+verb &createVerb(const std::string &name, const std::string &desc);
 
 /* -------------------------------------------------------------------------- */
 /*                                    Error                                   */
@@ -123,41 +167,56 @@ void error(const std::string format, const std::string msg);
 /*                                 getFullName                                */
 /* -------------------------------------------------------------------------- */
 std::string getFullName(const char chrName);
-std::string getFullName(const std::string fullName);
+std::string getFullName(const std::string &fullName);
 
 /* -------------------------------------------------------------------------- */
-/*                                  ArgParser                                 */
+/*                                  arg_parser                                */
 /* -------------------------------------------------------------------------- */
-
-class ArgParser {
+class arg_parser {
 private:
     std::string programName, header, footer;
-    std::vector<Verb*> verbs;
-    std::vector<Option*> options;
-    std::vector<std::string> after;
-    std::map<std::string, Verb*> verbsMap;
-    std::map<std::string, Option*> optionsMap;
+    std::vector<std::string> after, verbPatternStr;
+    std::vector<verb*> verbPattern;
+    verb *root, *selected;
 
 public:
-    ~ArgParser();
+    arg_parser();
+    ~arg_parser();
 
     void reset();
 
-    void setProgramName(const std::string programName);
-    void setHelpHeader(const std::string header);
-    void setHelpFooter(const std::string footer);
-    Option &addOption(const std::string &fullName, const char chrName, const std::string &desc, bool expectsValue, bool required, bool valueRequired);
-    Verb &addVerb(const std::string name, const std::string desc);
+    arg_parser &setProgramName(const std::string &programName);
+    arg_parser &setHelpHeader(const std::string &header);
+    arg_parser &setHelpFooter(const std::string &footer);
+    arg_parser &addOption(option &o);
+    arg_parser &addVerb(verb &v);
 
     void parse(const int argc, const char **argv);
     bool isPresent(const char chrName);
-    bool isPresent(const std::string fullName);
-    bool verbPresent(const std::string name);
+    bool isPresent(const std::string &fullName);
+    bool verbPresent(const std::string &name);
 
-    std::string get(const char chrName);
-    std::string get(const std::string fullName);
+    std::string getString(const char chrName);
+    std::string getString(const std::string &fullName);
 
-    void printHelp();
+    template<typename T>
+    T get(const char chrName) {
+        T t;
+        std::stringstream ss;
+        ss << getString(chrName);
+        ss >> t;
+        return t;
+    }
+    template<typename T>
+    T get(const std::string &fullName) {
+        T t;
+        std::stringstream ss;
+        ss << getString(fullName);
+        ss >> t;
+        return t;
+    }
+
+    void printHelp(verb *v);
 };
 
-} // namespace arg_parser
+} // namespace cpp_arg_parser

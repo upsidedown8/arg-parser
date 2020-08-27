@@ -1,19 +1,40 @@
 #include "arg_parser/arg_parser.hpp"
 
-using namespace arg_parser;
+using namespace cpp_arg_parser;
+
+const size_t maxOptionLen = 15;
 
 /* -------------------------------------------------------------------------- */
 /*                                TestCriteria                                */
 /* -------------------------------------------------------------------------- */
-void TestCriteriaBase::error(const std::string &optionName, const std::string& msg) {
-    arg_parser::error(optionName + ": " + msg);
+void test_criteria_base::error(const std::string& msg) {
+    if (parent == nullptr) {
+        cpp_arg_parser::error(msg);
+    } else {
+        cpp_arg_parser::error(getFullName(parent->fullName) + ": " + msg);
+    }
 }
 
-TypeTestCriteria::TypeTestCriteria(const std::string &optionName, TestTypes type) {
-    this->type = type;
-    this->optionName = optionName;
+custom_test_criteria::custom_test_criteria(const std::string &errorMsg, const std::string &desc, bool (*evalFnPtr)(const std::string&)) {
+    this->desc = desc;
+    this->evalFnPtr = evalFnPtr;
 }
-std::string TypeTestCriteria::toString() {
+std::string custom_test_criteria::toString() {
+    return "custom test: " + desc;
+}
+void custom_test_criteria::check(const std::string &value) {
+    if (!evalFnPtr(value)) {
+        error(errorMsg);
+    }
+}
+custom_test_criteria &createCustom(const std::string &errorMsg, const std::string &desc, bool (*evalFnPtr)(const std::string&)) {
+    return *new custom_test_criteria(errorMsg, desc, evalFnPtr);
+}
+
+type_test_criteria::type_test_criteria(TestTypes type) {
+    this->type = type;
+}
+std::string type_test_criteria::toString() {
     std::string result = "";
     switch (type) {
     case Test_int:
@@ -29,20 +50,20 @@ std::string TypeTestCriteria::toString() {
     }
     return result;
 }
-void TypeTestCriteria::check(const std::string &value) {
+void type_test_criteria::check(const std::string &value) {
     switch (type) {
     case Test_int:    
         try {
             std::stoi(value);
         } catch (const std::exception& e) {
-            error(optionName, "Should be an int.");
+            error("Should be an int.");
         }
         break;
     case Test_double:
         try {
             std::stod(value);
         } catch (const std::exception& e) {
-            error(optionName, "Should be a double.");
+            error("Should be a double.");
         }
         break;
     case Test_string:
@@ -50,11 +71,11 @@ void TypeTestCriteria::check(const std::string &value) {
         break;
     }
 }
-
-NumberListTestCritera::NumberListTestCritera(const std::string &optionName) {
-    this->optionName = optionName;
+type_test_criteria &cpp_arg_parser::createTypeTest(TestTypes type) {
+    return *new type_test_criteria( type);
 }
-std::string NumberListTestCritera::toString() {
+
+std::string number_list_test_criteria::toString() {
     std::stringstream ss;
     ss << "options:  ";
     for (int n : numbers)
@@ -62,55 +83,57 @@ std::string NumberListTestCritera::toString() {
     std::string result = ss.str().substr(0, ss.str().length()-2); 
     return result;
 }
-void NumberListTestCritera::check(const std::string &value) {
+void number_list_test_criteria::check(const std::string &value) {
     try {
         int n = std::stoi(value);
         if (!std::count(numbers.begin(), numbers.end(), n)) {
-            error(optionName, "The chosen number is not allowed.");
+            error("The chosen number is not allowed.");
         }
     } catch (const std::exception& e) {
-        error(optionName, "Failed to parse the number.");
+        error("Failed to parse the number.");
     }
 }
-NumberListTestCritera *NumberListTestCritera::add(int number) {
+number_list_test_criteria &number_list_test_criteria::add(int number) {
     if (std::count(numbers.begin(), numbers.end(), number))
-        error(optionName, "The same number cannot be added twice.");
+        error("The same number cannot be added twice.");
     numbers.push_back(number);
-    return this;
+    return *this;
+}
+number_list_test_criteria &cpp_arg_parser::createNumberList(const std::string &optionName) {
+    return *new number_list_test_criteria;
 }
 
-RangeTestCriteria::RangeTestCriteria(const std::string &optionName, int start, int end) {
+range_test_criteria::range_test_criteria(int start, int end) {
     this->start = start;
     this->end = end;
-    this->optionName = optionName;
 }
-std::string RangeTestCriteria::toString() {
+std::string range_test_criteria::toString() {
     std::stringstream ss;
     ss << start << '-' << end;
     return ss.str();
 }
-void RangeTestCriteria::check(const std::string &value) {
+void range_test_criteria::check(const std::string &value) {
     try {
         int n = std::stoi(value);
         if (n < start || n > end) {
-            error(optionName, "The chosen number was not in the correct range.");
+            error("The chosen number was not in the correct range.");
         }
     } catch (const std::exception& e) {
-        error(optionName, "Failed to parse the number.");
+        error("Failed to parse the number.");
     }
 }
-
-NumberRangeTestCriteria::NumberRangeTestCriteria(const std::string &optionName) {
-    this->optionName = optionName;
+range_test_criteria &cpp_arg_parser::createRange(int start, int end) {
+    return *new range_test_criteria(start, end);
 }
-std::string NumberRangeTestCriteria::toString() {
+
+std::string number_range_test_criteria::toString() {
     std::stringstream ss;
     ss << "options:  ";
     for (std::pair<int, int> *r : ranges)
         ss << r->first << '-' << r->second << ", ";
     return ss.str().substr(0, ss.str().length()-2);
 }
-void NumberRangeTestCriteria::check(const std::string &value) {
+void number_range_test_criteria::check(const std::string &value) {
     try {
         int n = std::stoi(value);
         bool found = false;
@@ -125,97 +148,217 @@ void NumberRangeTestCriteria::check(const std::string &value) {
             }
         }
         if (!found) {
-            error(optionName, "The chosen number was not in the correct range.");
+            error("The chosen number was not in the correct range.");
         }
     } catch (const std::exception& e) {
-        error(optionName, "Failed to parse the number.");
+        error("Failed to parse the number.");
     }
 }
-NumberRangeTestCriteria *NumberRangeTestCriteria::add(int number) {
+number_range_test_criteria &number_range_test_criteria::add(int number) {
     for (int n : numbers)
         if (n == number)
-            error(optionName, "The same number cannot be added twice.");
+            error("The same number cannot be added twice.");
     numbers.push_back(number);
-    return this;
+    return *this;
 }
-NumberRangeTestCriteria *NumberRangeTestCriteria::addRange(int start, int end) {
+number_range_test_criteria &number_range_test_criteria::addRange(int start, int end) {
     for (std::pair<int, int> *range : ranges)
         if (range->first == start && range->second == end)
-            error(optionName, "The same range cannot be added twice.");
+            error("The same range cannot be added twice.");
     ranges.push_back(new std::pair<int, int>(start, end));
-    return this;
+    return *this;
+}
+number_range_test_criteria &cpp_arg_parser::createNumberRange() {
+    return *new number_range_test_criteria;
 }
 
-OneOfStringTestCriteria::OneOfStringTestCriteria(const std::string &optionName, bool matchCase) {
+one_of_string_test_criteria::one_of_string_test_criteria(bool matchCase) {
     this->matchCase = matchCase;
-    this->optionName = optionName;
 }
-std::string OneOfStringTestCriteria::toString() {
+std::string one_of_string_test_criteria::toString() {
     std::stringstream ss;
     ss << "options:  ";
     for (std::string &p : possibilities)
         ss << p << ", ";
     return ss.str().substr(0, ss.str().length()-2);
 }
-void OneOfStringTestCriteria::check(const std::string &value) {
+void one_of_string_test_criteria::check(const std::string &value) {
     std::string v = value;
     if (!matchCase)
         for (size_t i = 0; i < v.size(); i++)
             v[i] = tolower(v[i]);
     if (possibilities.size() && !std::count(possibilities.begin(), possibilities.end(), v))
-        error(optionName, "The chosen value was not found in the configured options: " + v);
+        error("The chosen value was not found in the configured options: " + v);
 }
-OneOfStringTestCriteria *OneOfStringTestCriteria::add(const std::string &possibility) {
+one_of_string_test_criteria &one_of_string_test_criteria::add(const std::string &possibility) {
     std::string v = possibility;
     if (!matchCase)
         for (size_t i = 0; i < v.size(); i++)
             v[i] = tolower(v[i]);
     if (std::count(possibilities.begin(), possibilities.end(), v))
-        error(optionName, "The same possibility cannot be added twice.");
+        error("The same possibility cannot be added twice.");
     possibilities.push_back(v);
-    return this;
+    return *this;
+}
+one_of_string_test_criteria &cpp_arg_parser::createOneOfString(bool matchCase) {
+    return *new one_of_string_test_criteria(matchCase);
 }
 
 /* -------------------------------------------------------------------------- */
 /*                                    Verbs                                   */
 /* -------------------------------------------------------------------------- */
-Verb::Verb(const std::string name, const std::string desc) {
+verb::verb(const std::string name, const std::string desc) {
+    if (name == "" || name == longPrefix || name[0] == shortPrefix[0])
+        error("Verb name cannot be empty or start with '-': %s", name);
+    for (char c : name) {
+        if (!(isalnum(c) || c == '-' || c == '_')) {
+            cpp_arg_parser::error("The option name (" + name +") contains an invalid character: " + c);
+        }
+    }
     this->name = name;
     this->desc = desc;
     this->isPresent = false;
 }
 
+verb &verb::addAction(void (*action)(verb *)) {
+    if (actionFn != nullptr) {
+        actionFn = action;
+    }
+    return *this;
+}
+verb &verb::addOption(option &opt) {
+    if (opt.fullName == "help" || opt.chrName == '?')
+        error("Both '--help' and '-?' are reserved.");
+    std::string longName = getFullName(opt.fullName);
+    std::string shortName = getFullName(opt.chrName);
+    if (optionsMap.count(longName))
+        error("An option with the same name has already been added: %s", longName);
+    optionsMap[longName] = &opt;
+    if (opt.chrName)
+        optionsMap[shortName] = &opt;
+    options.push_back(&opt);
+    opt.parent = this;
+    return *this;
+}
+verb &verb::addVerb(verb &v) {
+    if (parent != nullptr && parent == &v)
+        error("Cannot add the parent of a verb as its child: %s\n", v.name);
+    if (verbsMap.count(v.name))
+        error("A verb with the same name has already been added: %s\n", v.name);
+    verbs.push_back(&v);
+    verbsMap[v.name] = &v;
+    v.parent = this;
+    return *this;
+}
+
+void verb::reset() {
+    isPresent = false;
+    for (option *option : options) {
+        option->isPresent = false;
+        option->value = "";
+    }
+    for (verb *verb : verbs) {
+        verb->reset();
+    }
+}
+void verb::clear() {
+    for (verb *child : verbs)
+        child->clear();
+    for (option *opt : options)
+        opt->clear();
+    verbs.clear();
+    options.clear();
+    verbsMap.clear();
+    optionsMap.clear();
+    delete this;
+}
+void verb::runAction() {
+    if (actionFn != nullptr && isPresent) {
+        actionFn(this);
+    }
+    for (verb *v: verbs) {
+        v->runAction();
+    }
+}
+void verb::printHelp() {
+    for (option *option : options) {
+        option->printHelp();
+    }
+}
+
+verb &cpp_arg_parser::createVerb(const std::string &name, const std::string &desc) {
+    return *new verb(name, desc);
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                   Options                                  */
 /* -------------------------------------------------------------------------- */
-Option::Option(const std::string &fullName, const char chrName, const std::string &desc, bool expectsValue, bool required, bool valueRequired) {
+option::option(const std::string &fullName, const char chrName, const std::string &desc, bool expectsValue, bool required) {
+    if (fullName.length() > maxOptionLen) {
+        cpp_arg_parser::error("The option name must be less than the maximum length of: " + std::to_string(maxOptionLen) + "\n");
+    }
+    for (char c : fullName) {
+        if (!(isalnum(c) || c == '-' || c == '_')) {
+            cpp_arg_parser::error("The option name (" + getFullName(fullName) +") contains an invalid character: " + c);
+        }
+    }
     this->fullName = fullName;
     this->chrName = chrName;
     this->desc = desc;
     this->expectsValue = expectsValue;
     this->required = required;
     this->isPresent = false;
-    this->valueRequired = valueRequired;
 }
 
-Option &Option::addTestCriteria(TestCriteriaBase *test) {
-    if (std::count(testCriteria.begin(), testCriteria.end(), test))
-        error("Two of the same criteria cannot be added");
-    testCriteria.push_back(test);
+option &option::addAction(void (*action)(option *)) {
+    if (action != nullptr) {
+        actionFn = action;
+    }
     return *this;
 }
-void Option::check() {
-    for (TestCriteriaBase *test: testCriteria)
+option &option::addTestCriteria(test_criteria_base &test) {
+    if (std::count(testCriteria.begin(), testCriteria.end(), &test))
+        error("Two of the same criteria cannot be added");
+    testCriteria.push_back(&test);
+    test.parent = this;
+    return *this;
+}
+void option::check() {
+    for (test_criteria_base *test: testCriteria)
         test->check(value);
+}
+void option::clear() {
+    for (test_criteria_base *b : testCriteria)
+        delete b;
+    delete this;
+}
+void option::runAction() {
+    if (actionFn != nullptr && isPresent) {
+        actionFn(this);
+    }
+}
+void option::printHelp() {
+    std::string optionLenStr = std::to_string(maxOptionLen);
+    if (chrName) {
+        std::string format = "    %2s, --%-" + optionLenStr + "s\t%s\n";
+        printf(format.c_str(), getFullName(chrName).c_str(), fullName.c_str(), desc.c_str());
+    } else {
+        std::string format = "        --%-" + optionLenStr + "s\t%s\n";
+        printf(format.c_str(), fullName.c_str(), desc.c_str());
+    }
+}
+
+option &cpp_arg_parser::createOption(const std::string &fullName, const char chrName, const std::string &desc, bool expectsValue, bool required) {
+    return *new option(fullName, chrName, desc, expectsValue, required);
 }
 
 /* -------------------------------------------------------------------------- */
 /*                                    Error                                   */
 /* -------------------------------------------------------------------------- */
-void arg_parser::error(const std::string msg) {
+void cpp_arg_parser::error(const std::string msg) {
     error("%s\n", msg);   
 }
-void arg_parser::error(const std::string format, const std::string msg) {
+void cpp_arg_parser::error(const std::string format, const std::string msg) {
     printf(format.c_str(), msg.c_str());
     exit(1);
 }
@@ -223,92 +366,83 @@ void arg_parser::error(const std::string format, const std::string msg) {
 /* -------------------------------------------------------------------------- */
 /*                                 getFullName                                */
 /* -------------------------------------------------------------------------- */
-std::string arg_parser::getFullName(const char chrName) {
+std::string cpp_arg_parser::getFullName(const char chrName) {
     return shortPrefix + chrName;
 }
-std::string arg_parser::getFullName(const std::string fullName) {
+std::string cpp_arg_parser::getFullName(const std::string &fullName) {
     return longPrefix + fullName;
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                  ArgParser                                 */
+/*                                  arg_parser                                 */
 /* -------------------------------------------------------------------------- */
-ArgParser::~ArgParser() {
-    for (Option *option: options)
-        delete option;
-    for (Verb *verb: verbs)
-        delete verb;
-    verbs.clear();
-    verbsMap.clear();
-    options.clear();
-    optionsMap.clear();
+arg_parser::arg_parser() {
+    root = new verb(programName == "" ? "root" : programName, "");
+    selected = root;
+}
+arg_parser::~arg_parser() {
+    root->clear();
     after.clear();
     programName.clear();
     header.clear();
     footer.clear();
+    verbPatternStr.clear();
+    verbPattern.clear();
 }
 
-void ArgParser::reset() {
-    for (Option *option : options) {
-        option->isPresent = false;
-        option->value = "";
-    }
-    for (Verb *verb : verbs) {
-        verb->isPresent = false;
-    }
+void arg_parser::reset() {
+    root->reset();
+    verbPattern.clear();
+    verbPatternStr.clear();
+    selected = root;
 }
 
-void ArgParser::setProgramName(const std::string programName) {
+arg_parser &arg_parser::setProgramName(const std::string &programName) {
     this->programName = programName;
+    return *this;
 }
-void ArgParser::setHelpHeader(const std::string header) {
+arg_parser &arg_parser::setHelpHeader(const std::string &header) {
     this->header = header;
+    return *this;
 }
-void ArgParser::setHelpFooter(const std::string footer) {
+arg_parser &arg_parser::setHelpFooter(const std::string &footer) {
     this->footer = footer;
+    return *this;
 }
-Option &ArgParser::addOption(const std::string &fullName, const char chrName, const std::string &desc, bool expectsValue, bool required, bool valueRequired) {
-    if (fullName == "help" || chrName == '?')
-        error("Both '--help' and '-?' are reserved.");
-    std::string longName = getFullName(fullName);
-    std::string shortName = getFullName(chrName);
-    if (optionsMap.count(longName))
-        error("An option with the same name has already been added: %s", longName);
-    Option *option = new Option(fullName, chrName, desc, expectsValue, required, valueRequired);
-    optionsMap[longName] = option;
-    if (chrName)
-        optionsMap[shortName] = option;
-    options.push_back(option);
-    return *option;
+arg_parser &arg_parser::addOption(option &o) {
+    root->addOption(o);
+    return *this;
 }
-Verb &ArgParser::addVerb(const std::string name, const std::string desc) {
-    if (verbsMap.count(name))
-        error("A verb with the same name has already been added: %s", name);
-    Verb *verb = new Verb(name, desc);
-    verbs.push_back(verb);
-    verbsMap[name] = verb;
-    return *verb;
+arg_parser &arg_parser::addVerb(verb &v) {
+    root->addVerb(v);
+    return *this;
 }
 
-void ArgParser::parse(const int argc, const char **argv) {
+void arg_parser::parse(const int argc, const char **argv) {
     reset();
     if (argc < 2) {
-        printHelp();
+        printHelp(root);
         exit(0);
     } else {
+        if (programName == "")
+            programName = argv[0];
         int start = 1;
         for (; start < argc && argv[start][0] != shortPrefix[0]; start++) {
-            if (verbsMap.count(argv[start])) {
-                Verb *verb = verbsMap[argv[start]];
-                if (!verb->isPresent) {
-                    verb->isPresent = true;
-                } else {
-                    error("Multiple occurances of a verb: %s\n", verb->name);
-                }
+            if (selected->verbsMap.count(argv[start])) {
+                selected = selected->verbsMap[argv[start]];
+                verbPatternStr.push_back(argv[start]);
+                verbPattern.push_back(selected);
             } else {
                 error("The provided verb was not recognised: %s\n", argv[start]);
             }
         }
+
+        // print help and exit if no args supplied
+        if (start >= argc) {
+            printHelp(selected);
+            exit(0);
+        }
+
         // stores whether the arguments are options, not checking if they are configured
         bool *argIsOption = new bool[std::max(0, argc-1)];
         for (int i = start; i < argc; i++) {
@@ -336,10 +470,10 @@ void ArgParser::parse(const int argc, const char **argv) {
                         error("An escape sequences was detected, but not followed by a value.");
                     }
                 } else if (argv[i] == getFullName('?') || argv[i] == getFullName("help")) {
-                    printHelp();
+                    printHelp(selected);
                     exit(0);
-                } else if (optionsMap.count(argv[i])) {
-                    Option *option = optionsMap[argv[i]];
+                } else if (selected->optionsMap.count(argv[i])) {
+                    option *option = selected->optionsMap[argv[i]];
                     if (!option->isPresent) {
                         option->isPresent = true;
                         if (option->expectsValue) { // expects a value
@@ -369,64 +503,75 @@ void ArgParser::parse(const int argc, const char **argv) {
         delete [] argIsOption;
 
         // check that option conditions have been met
-        for (Option *option: options) {
+        for (option *option: selected->options) {
             std::string optionName = getFullName(option->chrName) + " / " + getFullName(option->fullName);
-            if (option->required && !option->isPresent) {
+            if (option->required && (!option->isPresent || (option->expectsValue && option->value == ""))) {
                 error("A required option was missing: %s\n", optionName);
-            } else if (option->valueRequired && option->value == "") {
-                error("A required option was missing a value: %s\n", optionName);
             }
 
             if (option->value != "") {
                 option->check();
             }
         }
+
+        // run any actions
+        root->runAction();
+        for (option *option: selected->options) {
+            if (option->isPresent) {
+                option->runAction();
+            }
+        }
     }
 }
-bool ArgParser::isPresent(const char chrName) {
+bool arg_parser::isPresent(const char chrName) {
     std::string name = getFullName(chrName);
-    if (!optionsMap.count(name))
+    if (!selected->optionsMap.count(name))
         error("%s\n", "The selected option is not recognised.");
-    return optionsMap[name]->isPresent;
+    return selected->optionsMap[name]->isPresent;
 }
-bool ArgParser::isPresent(const std::string fullName) {
+bool arg_parser::isPresent(const std::string &fullName) {
     std::string name = getFullName(fullName);
-    if (!optionsMap.count(name))
+    if (!selected->optionsMap.count(name))
         error("%s\n", "The selected option is not recognised.");
-    return optionsMap[name]->isPresent;
+    return selected->optionsMap[name]->isPresent;
 }
-bool ArgParser::verbPresent(const std::string name) {
-    if (!verbsMap.count(name))
+bool arg_parser::verbPresent(const std::string &name) {
+    if (!selected->verbsMap.count(name))
         error("%s\n", "The selected verb was not recognised.");
-    return verbsMap[name]->isPresent;
+    return selected->verbsMap[name]->isPresent;
 }
 
-std::string ArgParser::get(const char chrName) {
+std::string arg_parser::getString(const char chrName) {
     std::string name = getFullName(chrName);
-    if (!optionsMap.count(name))
+    if (!selected->optionsMap.count(name))
         error("The specified option was not recognised: %s\n", name);
-    Option *option = optionsMap[name];
+    option *option = selected->optionsMap[name];
     if (!option->expectsValue)
         error("The selected option does not accept a parameter: %s\n", name);
     return option->value;
 }
-std::string ArgParser::get(const std::string fullName) {
+std::string arg_parser::getString(const std::string &fullName) {
     std::string name = getFullName(fullName);
-    if (!optionsMap.count(name))
+    if (!selected->optionsMap.count(name))
         error("The specified option was not recognised: %s\n", name);
-    Option *option = optionsMap[name];
+    option *option = selected->optionsMap[name];
     if (!option->expectsValue)
         error("The selected option does not accept a parameter: %s\n", name);
     return option->value;
 }
 
-void ArgParser::printHelp() {
-    printf("Usage: %s [verb] [options]\n%s\noptions:\n", programName.c_str(), header.c_str());
-    for (Option *option : options) {
-        printf("    %2s, %-12s\t%s\n", 
-            (shortPrefix + option->chrName).c_str(),
-            (longPrefix + option->fullName).c_str(),
-            option->desc.c_str());
+void arg_parser::printHelp(verb *v) {
+    if (v != root) { // sub verb
+        std::stringstream ss;
+        for (std::string verb : verbPatternStr)
+            ss << verb << ' ';
+        printf("Usage: %s %s[options]\n%s\n", programName.c_str(), ss.str().c_str(), header.c_str());
+        printf("\nselected verb pattern: %s %s\n", programName.c_str(), ss.str().c_str());
+    } else {
+        printf("Usage: %s [verb] [options]\n%s\n", programName.c_str(), header.c_str());
     }
+    printf("\noptions:\n");
+    v->printHelp();
+    printf("    -?, --help          \tOpen this help message\n");
     printf("%s", footer.c_str());
 }
