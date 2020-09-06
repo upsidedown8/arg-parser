@@ -3,24 +3,31 @@
 using namespace cpp_arg_parser;
 
 const size_t maxOptionLen = 15;
+const std::string shortPrefix = "-";
+const std::string longPrefix = "--";
 
 /* -------------------------------------------------------------------------- */
 /*                                TestCriteria                                */
 /* -------------------------------------------------------------------------- */
 void test_criteria_base::error(const std::string& msg) {
     if (parent == nullptr) {
-        cpp_arg_parser::error(msg);
+        printf("%s\n", msg.c_str());
     } else {
-        cpp_arg_parser::error(getFullName(parent->fullName) + ": " + msg);
+        printf("%s: %s\n", getFullName(parent->fullName).c_str(), msg.c_str());
+        parent->printCriteria();
     }
+    exit(1);
 }
 
 custom_test_criteria::custom_test_criteria(const std::string &errorMsg, const std::string &desc, bool (*evalFnPtr)(const std::string&)) {
+    if (desc.length() > 100) {
+        error("The maximum description length is 100 chars");
+    }
     this->desc = desc;
     this->evalFnPtr = evalFnPtr;
 }
 std::string custom_test_criteria::toString() {
-    return "custom test: " + desc;
+    return "Custom test: " + desc;
 }
 void custom_test_criteria::check(const std::string &value) {
     if (!evalFnPtr(value)) {
@@ -35,17 +42,17 @@ type_test_criteria::type_test_criteria(TestTypes type) {
     this->type = type;
 }
 std::string type_test_criteria::toString() {
-    std::string result = "";
+    std::string result = "Type: ";
     switch (type) {
     case Test_int:
-        result = "Expects an int.";
+        result += "int";
         break;
     case Test_double:
-        result = "Expects a double.";
+        result += "double";
         break;
     case Test_string:
     default:
-        result = "Expects a string.";
+        result += "string";
         break;
     }
     return result;
@@ -56,14 +63,14 @@ void type_test_criteria::check(const std::string &value) {
         try {
             std::stoi(value);
         } catch (const std::exception& e) {
-            error("Should be an int.");
+            error("Should be an int");
         }
         break;
     case Test_double:
         try {
             std::stod(value);
         } catch (const std::exception& e) {
-            error("Should be a double.");
+            error("%s: should be a double");
         }
         break;
     case Test_string:
@@ -77,7 +84,7 @@ type_test_criteria &cpp_arg_parser::createTypeTest(TestTypes type) {
 
 std::string number_list_test_criteria::toString() {
     std::stringstream ss;
-    ss << "options:  ";
+    ss << "Options:  ";
     for (int n : numbers)
         ss << n << ", ";
     std::string result = ss.str().substr(0, ss.str().length()-2); 
@@ -87,10 +94,10 @@ void number_list_test_criteria::check(const std::string &value) {
     try {
         int n = std::stoi(value);
         if (!std::count(numbers.begin(), numbers.end(), n)) {
-            error("The chosen number is not allowed.");
+            error("The chosen number is not allowed");
         }
     } catch (const std::exception& e) {
-        error("Failed to parse the number.");
+        error("Failed to parse the number");
     }
 }
 number_list_test_criteria &number_list_test_criteria::add(int number) {
@@ -109,17 +116,17 @@ range_test_criteria::range_test_criteria(int start, int end) {
 }
 std::string range_test_criteria::toString() {
     std::stringstream ss;
-    ss << start << '-' << end;
+    ss << "Range: " << start << '-' << end;
     return ss.str();
 }
 void range_test_criteria::check(const std::string &value) {
     try {
         int n = std::stoi(value);
         if (n < start || n > end) {
-            error("The chosen number was not in the correct range.");
+            error("The chosen number was not in the correct range");
         }
     } catch (const std::exception& e) {
-        error("Failed to parse the number.");
+        error("Failed to parse the number");
     }
 }
 range_test_criteria &cpp_arg_parser::createRange(int start, int end) {
@@ -128,7 +135,9 @@ range_test_criteria &cpp_arg_parser::createRange(int start, int end) {
 
 std::string number_range_test_criteria::toString() {
     std::stringstream ss;
-    ss << "options:  ";
+    ss << "Options:  ";
+    for (int n: numbers)
+        ss << n << ", ";
     for (std::pair<int, int> *r : ranges)
         ss << r->first << '-' << r->second << ", ";
     return ss.str().substr(0, ss.str().length()-2);
@@ -148,10 +157,10 @@ void number_range_test_criteria::check(const std::string &value) {
             }
         }
         if (!found) {
-            error("The chosen number was not in the correct range.");
+            error("The chosen number was not in the correct range");
         }
     } catch (const std::exception& e) {
-        error("Failed to parse the number.");
+        error("Failed to parse the number");
     }
 }
 number_range_test_criteria &number_range_test_criteria::add(int number) {
@@ -177,7 +186,7 @@ one_of_string_test_criteria::one_of_string_test_criteria(bool matchCase) {
 }
 std::string one_of_string_test_criteria::toString() {
     std::stringstream ss;
-    ss << "options:  ";
+    ss << "Options: ";
     for (std::string &p : possibilities)
         ss << p << ", ";
     return ss.str().substr(0, ss.str().length()-2);
@@ -208,11 +217,16 @@ one_of_string_test_criteria &cpp_arg_parser::createOneOfString(bool matchCase) {
 /*                                    Verbs                                   */
 /* -------------------------------------------------------------------------- */
 verb::verb(const std::string name, const std::string desc) {
-    if (name == "" || name == longPrefix || name[0] == shortPrefix[0])
+    if (desc.length() > 100) {
+        error("The maximum description length is 100 chars");
+    } else if (name.length() > 16) {
+        error("Don't you think that verb is a bit long?: %s\n", name);
+    } else if (name == "" || name == longPrefix || name[0] == '-') {
         error("Verb name cannot be empty or start with '-': %s", name);
+    }
     for (char c : name) {
         if (!(isalnum(c) || c == '-' || c == '_')) {
-            cpp_arg_parser::error("The option name (" + name +") contains an invalid character: " + c);
+            cpp_arg_parser::error("The verb name (" + name +") contains an invalid character: " + c);
         }
     }
     this->name = name;
@@ -227,8 +241,6 @@ verb &verb::addAction(void (*action)(verb *)) {
     return *this;
 }
 verb &verb::addOption(option &opt) {
-    if (opt.fullName == "help" || opt.chrName == '?')
-        error("Both '--help' and '-?' are reserved.");
     std::string longName = getFullName(opt.fullName);
     std::string shortName = getFullName(opt.chrName);
     if (optionsMap.count(longName))
@@ -285,6 +297,24 @@ void verb::printHelp() {
         option->printHelp();
     }
 }
+void verb::printVerbs(std::string prefix, bool isLast) {
+    if (desc.length()) {
+        printf("%s%s %s: (%s)\n", 
+            prefix.c_str(),
+            isLast ? "└──" : "├──",
+            name.c_str(),
+            desc.c_str());
+    } else {
+        printf("%s%s %s\n", 
+            prefix.c_str(),
+            isLast ? "└──" : "├──",
+            name.c_str());
+    }
+    for (size_t i = 0; i < verbs.size(); i++)
+        verbs[i]->printVerbs(
+            prefix + (isLast ? "    " : "│   "), 
+            i+1 >= verbs.size());
+}
 
 verb &cpp_arg_parser::createVerb(const std::string &name, const std::string &desc) {
     return *new verb(name, desc);
@@ -294,8 +324,17 @@ verb &cpp_arg_parser::createVerb(const std::string &name, const std::string &des
 /*                                   Options                                  */
 /* -------------------------------------------------------------------------- */
 option::option(const std::string &fullName, const char chrName, const std::string &desc, bool expectsValue, bool required) {
-    if (fullName.length() > maxOptionLen) {
-        cpp_arg_parser::error("The option name must be less than the maximum length of: " + std::to_string(maxOptionLen) + "\n");
+    if (desc.length() > 100) {
+        error("The maximum description length is 100 chars");
+    } else if (fullName.length() > maxOptionLen || fullName.length() < 2) {
+        cpp_arg_parser::error(
+            "The option name must be at least 2 chars and less than the maximum length of: " + 
+            std::to_string(maxOptionLen) + "\n");
+    } else if (fullName[0] == '-') {
+        error("Option name cannot start with '-': %s\n", fullName);
+    } else if (fullName == "help" || fullName == "verbs" || chrName == '?' || chrName == '-') {
+        error("Invalid name as '--help', '--verbs'. '--' and '-?' are reserved: --%s\n", 
+            getFullName(fullName) + " / -" + getFullName(chrName));
     }
     for (char c : fullName) {
         if (!(isalnum(c) || c == '-' || c == '_')) {
@@ -340,12 +379,19 @@ void option::runAction() {
 void option::printHelp() {
     std::string optionLenStr = std::to_string(maxOptionLen);
     if (chrName) {
-        std::string format = "    %2s, --%-" + optionLenStr + "s\t%s\n";
+        std::string format = "    %2s, --%-" + optionLenStr + "s    %s\n";
         printf(format.c_str(), getFullName(chrName).c_str(), fullName.c_str(), desc.c_str());
     } else {
-        std::string format = "        --%-" + optionLenStr + "s\t%s\n";
+        std::string format = "        --%-" + optionLenStr + "s    %s\n";
         printf(format.c_str(), fullName.c_str(), desc.c_str());
     }
+}
+void option::printCriteria() {
+    if (testCriteria.size())
+        printf("Criteria:\n");
+
+    for (test_criteria_base *criteria: testCriteria)
+        printf("\t%s\n", criteria->toString().c_str());
 }
 
 option &cpp_arg_parser::createOption(const std::string &fullName, const char chrName, const std::string &desc, bool expectsValue, bool required) {
@@ -376,9 +422,10 @@ std::string cpp_arg_parser::getFullName(const std::string &fullName) {
 /* -------------------------------------------------------------------------- */
 /*                                  arg_parser                                 */
 /* -------------------------------------------------------------------------- */
-arg_parser::arg_parser() {
+arg_parser::arg_parser(bool autoPrintHelp) {
     root = new verb(programName == "" ? "root" : programName, "");
     selected = root;
+    this->autoPrintHelp = autoPrintHelp;
 }
 arg_parser::~arg_parser() {
     root->clear();
@@ -420,7 +467,7 @@ arg_parser &arg_parser::addVerb(verb &v) {
 
 void arg_parser::parse(const int argc, const char **argv) {
     reset();
-    if (argc < 2) {
+    if (argc < 2 && autoPrintHelp) {
         printHelp(root);
         exit(0);
     } else {
@@ -438,13 +485,14 @@ void arg_parser::parse(const int argc, const char **argv) {
         }
 
         // print help and exit if no args supplied
-        if (start >= argc) {
+        if (start >= argc && autoPrintHelp) { 
             printHelp(selected);
             exit(0);
         }
 
         // stores whether the arguments are options, not checking if they are configured
         bool *argIsOption = new bool[std::max(0, argc-1)];
+        bool *argIsHelp = new bool[std::max(0, argc-1)];
         for (int i = start; i < argc; i++) {
             argIsOption[i] = argv[i][0] == shortPrefix[0];
         }
@@ -462,16 +510,29 @@ void arg_parser::parse(const int argc, const char **argv) {
             }
         };
 
+        // check for help keywords
+        for (int i = start; i < argc; i++) {
+            argIsHelp[i] = true;
+            if (argv[i] == getFullName('?') || argv[i] == getFullName("help")) {
+                printHelp(selected);
+                exit(0);
+            } else if (argv[i] == getFullName("verbs")) {
+                printVerbs();
+                exit(0);
+            } else {
+                argIsHelp[i] = false;
+            }
+        }
+
         // parses the options and any arguments after
         for (int i = start; i < argc; i++) {
-            if (argIsOption[i]) {
+            if (argIsHelp[i]) {
+                continue;
+            } else if (argIsOption[i]) {
                 if (argv[i] == longPrefix) { // escape sequence
                     if (i+1 > argc) { // no option after
                         error("An escape sequences was detected, but not followed by a value.");
                     }
-                } else if (argv[i] == getFullName('?') || argv[i] == getFullName("help")) {
-                    printHelp(selected);
-                    exit(0);
                 } else if (selected->optionsMap.count(argv[i])) {
                     option *option = selected->optionsMap[argv[i]];
                     if (!option->isPresent) {
@@ -484,7 +545,9 @@ void arg_parser::parse(const int argc, const char **argv) {
                             if (i+1 < argc && !argIsOption[i+1]) {
                                 option->value = argv[++i];
                             } else { // no valid option
-                                error("A required argument was not present for the option: %s\n", argv[i]);
+                                printf("A required argument was not present for the option: %s\n", argv[i]);
+                                option->printCriteria();
+                                exit(1);
                             }
                         }
                     } else {
@@ -506,7 +569,9 @@ void arg_parser::parse(const int argc, const char **argv) {
         for (option *option: selected->options) {
             std::string optionName = getFullName(option->chrName) + " / " + getFullName(option->fullName);
             if (option->required && (!option->isPresent || (option->expectsValue && option->value == ""))) {
-                error("A required option was missing: %s\n", optionName);
+                printf("A required option was missing: %s\n", optionName.c_str());
+                option->printCriteria();
+                exit(1);
             }
 
             if (option->value != "") {
@@ -525,15 +590,11 @@ void arg_parser::parse(const int argc, const char **argv) {
 }
 bool arg_parser::isPresent(const char chrName) {
     std::string name = getFullName(chrName);
-    if (!selected->optionsMap.count(name))
-        error("%s\n", "The selected option is not recognised.");
-    return selected->optionsMap[name]->isPresent;
+    return selected->optionsMap.count(name) && selected->optionsMap[name]->isPresent;
 }
 bool arg_parser::isPresent(const std::string &fullName) {
     std::string name = getFullName(fullName);
-    if (!selected->optionsMap.count(name))
-        error("%s\n", "The selected option is not recognised.");
-    return selected->optionsMap[name]->isPresent;
+    return selected->optionsMap.count(name) && selected->optionsMap[name]->isPresent;
 }
 bool arg_parser::verbPresent(const std::string &name) {
     if (!selected->verbsMap.count(name))
@@ -565,13 +626,24 @@ void arg_parser::printHelp(verb *v) {
         std::stringstream ss;
         for (std::string verb : verbPatternStr)
             ss << verb << ' ';
-        printf("Usage: %s %s[options]\n%s\n", programName.c_str(), ss.str().c_str(), header.c_str());
-        printf("\nselected verb pattern: %s %s\n", programName.c_str(), ss.str().c_str());
+        printf("Usage: %s %s[options] [args]\n%s\n", programName.c_str(), ss.str().c_str(), header.c_str());
+        printf("\nSelected verb pattern: %s %s\n", programName.c_str(), ss.str().c_str());
+        if (v->desc.length()) {
+            printf("Verb description: %s\n", v->desc.c_str());
+        }
     } else {
-        printf("Usage: %s [verb] [options]\n%s\n", programName.c_str(), header.c_str());
+        printf("Usage: %s [verbs] [options] [args]\n%s\n", programName.c_str(), header.c_str());
     }
     printf("\noptions:\n");
     v->printHelp();
-    printf("    -?, --help          \tOpen this help message\n");
+    printf("        --verbs              Open the verbs tree\n");
+    printf("    -?, --help               Open this help message\n");
     printf("%s", footer.c_str());
+}
+void arg_parser::printVerbs() {
+    printf("%s: (program name)\n", programName.c_str());
+    for (size_t i = 0; i < root->verbs.size(); i++)
+        root->verbs[i]->printVerbs(
+            "    ",
+            i+1 >= root->verbs.size());
 }

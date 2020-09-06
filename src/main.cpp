@@ -43,15 +43,17 @@ int main(int argc, const char **argv) {
                 .addTestCriteria(createNumberList("someOtherOption")
                     .add(1)
                     .add(2)
-                    .add(50))));
+                    .add(50)))
+            .addVerb(createVerb("some-verb", "some desc")))
+        .addVerb(createVerb("verbname", "verbdesc"));
     
     argParser.parse(argc, argv);
 
-    if (argParser.isPresent("cipher"))
+    if (argParser.isPresent("cipher")) {
         printf("cipher: %s\n", argParser.getString("cipher").c_str());
-    if (argParser.isPresent("mode"))
+    } if (argParser.isPresent("mode")) {
         printf("  mode: %s\n", argParser.getString("mode"  ).c_str());
-    if (argParser.isPresent("number")) {
+    } if (argParser.isPresent("number")) {
         printf("number: %s\n", argParser.getString("number").c_str());
         printf("%d\n", argParser.get<int>("number"));
     }

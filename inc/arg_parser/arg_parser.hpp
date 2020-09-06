@@ -8,9 +8,6 @@
 
 namespace cpp_arg_parser {
 
-const std::string shortPrefix = "-";
-const std::string longPrefix = "--";
-
 struct option;
 struct verb;
 
@@ -126,6 +123,7 @@ struct option {
     void clear();
     void runAction();
     void printHelp();
+    void printCriteria();
 };
 
 option &createOption(const std::string &fullName, const char chrName, const std::string &desc, bool expectsValue, bool required);
@@ -153,6 +151,7 @@ struct verb {
     void clear();
     void runAction();
     void printHelp();
+    void printVerbs(std::string prefix = "", bool isLast = true);
 };
 
 verb &createVerb(const std::string &name, const std::string &desc);
@@ -174,13 +173,14 @@ std::string getFullName(const std::string &fullName);
 /* -------------------------------------------------------------------------- */
 class arg_parser {
 private:
+    bool autoPrintHelp;
     std::string programName, header, footer;
     std::vector<std::string> after, verbPatternStr;
     std::vector<verb*> verbPattern;
     verb *root, *selected;
 
 public:
-    arg_parser();
+    arg_parser(bool autoPrintHelp = false);
     ~arg_parser();
 
     void reset();
@@ -217,6 +217,7 @@ public:
     }
 
     void printHelp(verb *v);
+    void printVerbs();
 };
 
 } // namespace cpp_arg_parser
