@@ -235,7 +235,7 @@ verb::verb(const std::string name, const std::string desc) {
 }
 
 verb &verb::addAction(void (*action)(verb *)) {
-    if (actionFn != nullptr) {
+    if (action != nullptr) {
         actionFn = action;
     }
     return *this;
@@ -475,6 +475,7 @@ void arg_parser::parse(const int argc, const char **argv) {
             programName = argv[0];
         int start = 1;
         for (; start < argc && argv[start][0] != shortPrefix[0]; start++) {
+            selected->isPresent = true;
             if (selected->verbsMap.count(argv[start])) {
                 selected = selected->verbsMap[argv[start]];
                 verbPatternStr.push_back(argv[start]);
@@ -579,7 +580,7 @@ void arg_parser::parse(const int argc, const char **argv) {
             }
         }
 
-        // run any actions
+        // run any actions (recursive)
         root->runAction();
         for (option *option: selected->options) {
             if (option->isPresent) {

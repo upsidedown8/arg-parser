@@ -3,6 +3,10 @@
 
 using namespace cpp_arg_parser;
 
+void vAction(cpp_arg_parser::verb *v) {
+    printf("test");
+}
+
 void action(cpp_arg_parser::option *opt) {
     printf("Option name: %s\n", cpp_arg_parser::getFullName(opt->fullName).c_str());
 }
@@ -44,7 +48,8 @@ int main(int argc, const char **argv) {
                     .add(1)
                     .add(2)
                     .add(50)))
-            .addVerb(createVerb("some-verb", "some desc")))
+            .addVerb(createVerb("some-verb", "some desc"))
+                .addAction(vAction))
         .addVerb(createVerb("verbname", "verbdesc"));
     
     argParser.parse(argc, argv);
