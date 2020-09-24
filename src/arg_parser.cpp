@@ -514,7 +514,7 @@ void arg_parser::parse(const int argc, const char **argv) {
         // check for help keywords
         for (int i = start; i < argc; i++) {
             argIsHelp[i] = true;
-            if (argv[i] == getFullName('?') || argv[i] == getFullName("help")) {
+            if (argIsOption[i] && (argv[i] == getFullName('?') || argv[i] == getFullName("help"))) {
                 printHelp(selected);
                 exit(0);
             } else if (argv[i] == getFullName("verbs")) {
