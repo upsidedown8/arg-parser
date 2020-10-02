@@ -598,9 +598,10 @@ bool arg_parser::isPresent(const std::string &fullName) {
     return selected->optionsMap.count(name) && selected->optionsMap[name]->isPresent;
 }
 bool arg_parser::verbPresent(const std::string &name) {
-    if (!selected->verbsMap.count(name))
-        error("%s\n", "The selected verb was not recognised.");
-    return selected->verbsMap[name]->isPresent;
+    for (const auto verbPtr : verbPattern)
+        if (verbPtr->name == name)
+            return true;
+    return false;
 }
 
 std::string arg_parser::getString(const char chrName) {
