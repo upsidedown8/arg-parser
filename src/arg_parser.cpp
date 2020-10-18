@@ -465,7 +465,7 @@ arg_parser &arg_parser::addVerb(verb &v) {
     return *this;
 }
 
-void arg_parser::parse(const int argc, const char **argv) {
+void arg_parser::parse(const int argc, char **argv) {
     reset();
     if (argc < 2 && autoPrintHelp) {
         printHelp(root);

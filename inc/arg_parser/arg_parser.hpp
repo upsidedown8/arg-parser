@@ -191,7 +191,7 @@ public:
     arg_parser &addOption(option &o);
     arg_parser &addVerb(verb &v);
 
-    void parse(const int argc, const char **argv);
+    void parse(const int argc, char **argv);
     bool isPresent(const char chrName);
     bool isPresent(const std::string &fullName);
     bool verbPresent(const std::string &name);

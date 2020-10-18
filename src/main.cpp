@@ -11,7 +11,7 @@ void action(cpp_arg_parser::option *opt) {
     printf("Option name: %s\n", cpp_arg_parser::getFullName(opt->fullName).c_str());
 }
 
-int main(int argc, const char **argv) {
+int main(int argc, char **argv) {
     cpp_arg_parser::arg_parser argParser;
 
     argParser
