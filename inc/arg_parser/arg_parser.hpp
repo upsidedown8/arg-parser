@@ -111,7 +111,7 @@ struct option {
     bool expectsValue, isPresent, valueRequired, required;
     char chrName;
     verb *parent;
-    void (*actionFn)(option *);
+    void (*actionFn)(option *) = nullptr;
     std::string desc, fullName, value;
     std::vector<test_criteria_base*> testCriteria;
 
