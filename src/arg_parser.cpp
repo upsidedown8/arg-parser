@@ -492,8 +492,8 @@ void arg_parser::parse(const int argc, char **argv) {
         }
 
         // stores whether the arguments are options, not checking if they are configured
-        bool *argIsOption = new bool[std::max(0, argc-1)];
-        bool *argIsHelp = new bool[std::max(0, argc-1)];
+        bool* argIsOption = new bool[argc] {};
+        bool* argIsHelp = new bool[argc] {};
         for (int i = start; i < argc; i++) {
             argIsOption[i] = argv[i][0] == shortPrefix[0];
         }
