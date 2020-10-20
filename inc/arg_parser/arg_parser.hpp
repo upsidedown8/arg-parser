@@ -16,7 +16,7 @@ struct verb;
 /* -------------------------------------------------------------------------- */
 class test_criteria_base {
 public:
-    option *parent;
+    option *parent = nullptr;
 
     virtual ~test_criteria_base() {}
 

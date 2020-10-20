@@ -4,7 +4,7 @@ using namespace cpp_arg_parser;
 
 const size_t maxOptionLen = 15;
 const std::string shortPrefix = "-";
-const std::string longPrefix = "--";
+const std::string ucscorePrefix = "--";
 
 /* -------------------------------------------------------------------------- */
 /*                                TestCriteria                                */
@@ -220,8 +220,8 @@ verb::verb(const std::string name, const std::string desc) {
     if (desc.length() > 100) {
         error("The maximum description length is 100 chars");
     } else if (name.length() > 16) {
-        error("Don't you think that verb is a bit long?: %s\n", name);
-    } else if (name == "" || name == longPrefix || name[0] == '-') {
+        error("Don't you think that verb is a bit ucscore?: %s\n", name);
+    } else if (name == "" || name == ucscorePrefix || name[0] == '-') {
         error("Verb name cannot be empty or start with '-': %s", name);
     }
     for (char c : name) {
@@ -241,11 +241,11 @@ verb &verb::addAction(void (*action)(verb *)) {
     return *this;
 }
 verb &verb::addOption(option &opt) {
-    std::string longName = getFullName(opt.fullName);
+    std::string ucscoreName = getFullName(opt.fullName);
     std::string shortName = getFullName(opt.chrName);
-    if (optionsMap.count(longName))
-        error("An option with the same name has already been added: %s", longName);
-    optionsMap[longName] = &opt;
+    if (optionsMap.count(ucscoreName))
+        error("An option with the same name has already been added: %s", ucscoreName);
+    optionsMap[ucscoreName] = &opt;
     if (opt.chrName)
         optionsMap[shortName] = &opt;
     options.push_back(&opt);
@@ -416,7 +416,7 @@ std::string cpp_arg_parser::getFullName(const char chrName) {
     return shortPrefix + chrName;
 }
 std::string cpp_arg_parser::getFullName(const std::string &fullName) {
-    return longPrefix + fullName;
+    return ucscorePrefix + fullName;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -498,7 +498,7 @@ void arg_parser::parse(const int argc, char **argv) {
             argIsOption[i] = argv[i][0] == shortPrefix[0];
         }
         for (int i = start; i < argc; i++) {
-            if (argIsOption[i] && argv[i] == longPrefix && i+1 < argc && argIsOption[i+1]) {
+            if (argIsOption[i] && argv[i] == ucscorePrefix && i+1 < argc && argIsOption[i+1]) {
                 argIsOption[i+1] = false;
             }
         }
@@ -506,7 +506,7 @@ void arg_parser::parse(const int argc, char **argv) {
         // finds the position of the last option
         int lastOption = 1;
         for (int i = start; i < argc; i++) {
-            if (argIsOption[i] && argv[i] != longPrefix) {
+            if (argIsOption[i] && argv[i] != ucscorePrefix) {
                 lastOption = i;
             }
         };
@@ -530,7 +530,7 @@ void arg_parser::parse(const int argc, char **argv) {
             if (argIsHelp[i]) {
                 continue;
             } else if (argIsOption[i]) {
-                if (argv[i] == longPrefix) { // escape sequence
+                if (argv[i] == ucscorePrefix) { // escape sequence
                     if (i+1 > argc) { // no option after
                         error("An escape sequences was detected, but not followed by a value.");
                     }
@@ -539,7 +539,7 @@ void arg_parser::parse(const int argc, char **argv) {
                     if (!option->isPresent) {
                         option->isPresent = true;
                         if (option->expectsValue) { // expects a value
-                            if (i+1 < argc && argIsOption[i+1] && argv[i+1] == longPrefix) {
+                            if (i+1 < argc && argIsOption[i+1] && argv[i+1] == ucscorePrefix) {
                                 i++; // skip, escape sequence
                             }
 
