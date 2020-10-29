@@ -1,4 +1,6 @@
-bin
-obj
-Debug
-.vs
+cmake/
+bin/
+obj/
+Debug/
+.vs/
+
