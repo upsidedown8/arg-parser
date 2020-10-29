@@ -1,5 +1,8 @@
 #include "arg_parser/arg_parser.hpp"
 
+#include <exception>
+#include <algorithm>
+
 using namespace cpp_arg_parser;
 
 const size_t maxOptionLen = 15;
@@ -44,13 +47,13 @@ type_test_criteria::type_test_criteria(TestTypes type) {
 std::string type_test_criteria::toString() {
     std::string result = "Type: ";
     switch (type) {
-    case Test_int:
+    case TestTypes::Test_int:
         result += "int";
         break;
-    case Test_double:
+    case TestTypes::Test_double:
         result += "double";
         break;
-    case Test_string:
+    case TestTypes::Test_string:
     default:
         result += "string";
         break;
@@ -59,21 +62,21 @@ std::string type_test_criteria::toString() {
 }
 void type_test_criteria::check(const std::string &value) {
     switch (type) {
-    case Test_int:    
+    case TestTypes::Test_int:
         try {
             std::stoi(value);
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             error("Should be an int");
         }
         break;
-    case Test_double:
+    case TestTypes::Test_double:
         try {
             std::stod(value);
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             error("%s: should be a double");
         }
         break;
-    case Test_string:
+    case TestTypes::Test_string:
     default:
         break;
     }
@@ -96,7 +99,7 @@ void number_list_test_criteria::check(const std::string &value) {
         if (!std::count(numbers.begin(), numbers.end(), n)) {
             error("The chosen number is not allowed");
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         error("Failed to parse the number");
     }
 }
@@ -125,7 +128,7 @@ void range_test_criteria::check(const std::string &value) {
         if (n < start || n > end) {
             error("The chosen number was not in the correct range");
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         error("Failed to parse the number");
     }
 }
@@ -159,7 +162,7 @@ void number_range_test_criteria::check(const std::string &value) {
         if (!found) {
             error("The chosen number was not in the correct range");
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         error("Failed to parse the number");
     }
 }

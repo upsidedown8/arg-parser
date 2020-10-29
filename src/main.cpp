@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
                 .add("affine")
                 .add("atbash")
                 .add("caesar"))
-            .addTestCriteria(createTypeTest(Test_string)))
+            .addTestCriteria(createTypeTest(TestTypes::Test_string)))
         .addOption(createOption("mode", 'm', "The mode to use", true, true)
             .addTestCriteria(createOneOfString(false)
                 .add("encrypt")

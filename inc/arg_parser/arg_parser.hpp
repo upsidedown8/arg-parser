@@ -2,9 +2,7 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <exception>
 #include <sstream>
-#include <algorithm>
 
 namespace cpp_arg_parser {
 
@@ -39,7 +37,7 @@ public:
 };
 custom_test_criteria &createCustom(const std::string &errorMsg, const std::string &desc, bool (*evalFnPtr)(const std::string&));
 
-enum TestTypes {
+enum class TestTypes {
     Test_int, Test_double, Test_string
 };
 
