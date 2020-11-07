@@ -16,16 +16,19 @@ set(
     src/arg_parser.cpp
 )
 
-# executable
-add_executable(
-    arg_parser_exec
-    ${SRC_FILES}
-    src/main.cpp
-)
-
 # library
 add_library(
     arg_parser
     SHARED
     ${SRC_FILES}
+)
+
+# executable
+add_executable(
+    arg_parser_exec
+    src/main.cpp
+)
+target_link_libraries(
+    arg_parser_exec
+    arg_parser
 )
