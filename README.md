@@ -1,4 +1,4 @@
-# arg-parser
+# arg_parser
 
 Command line parser for c++
 
